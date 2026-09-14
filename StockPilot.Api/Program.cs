@@ -4,6 +4,12 @@ using StockPilot.Api.Data;
 using Scalar.AspNetCore;
 using System.ComponentModel.DataAnnotations;
 using StockPilot.Api.Dtos;
+using StockPilot.Api.Middleware;
+using StockPilot.Api.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+
 
 static bool TryValidate<T>(T model, out IDictionary<string, string[]> errors)
 {
@@ -25,18 +31,41 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
 
-
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddSingleton<ITokenService, TokenService>();builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+        };
+    });
 
+builder.Services.AddAuthorization();
 var app = builder.Build();app.MapScalarApiReference();
 
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+else
+{
+    app.UseExceptionHandler();
+}
 
 app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapGet("/products", async (AppDbContext db) =>
     await db.Products.ToListAsync())
@@ -68,7 +97,8 @@ app.MapPost("/products", async (CreateProductDto dto, AppDbContext db) =>
     await db.SaveChangesAsync();
     return Results.Created($"/products/{product.Id}", product);
 })
-    .WithName("CreateProduct");
+    .WithName("CreateProduct")
+    .RequireAuthorization();
 
 app.MapPut("/products/{id}", async (int id, UpdateProductDto dto, AppDbContext db) =>
 {
@@ -87,7 +117,8 @@ app.MapPut("/products/{id}", async (int id, UpdateProductDto dto, AppDbContext d
     await db.SaveChangesAsync();
     return Results.Ok(product);
 })
-    .WithName("UpdateProduct");
+    .WithName("UpdateProduct")
+    .RequireAuthorization();
 
 app.MapDelete("/products/{id}", async (int id, AppDbContext db) =>
 {
@@ -98,7 +129,8 @@ app.MapDelete("/products/{id}", async (int id, AppDbContext db) =>
     await db.SaveChangesAsync();
     return Results.NoContent();
 })
-    .WithName("DeleteProduct");
+    .WithName("DeleteProduct")
+    .RequireAuthorization();
 
 app.MapGet("/categories", async (AppDbContext db) =>
     await db.Categories.ToListAsync())
@@ -109,7 +141,8 @@ app.MapGet("/categories/{id}", async (int id, AppDbContext db) =>
     var category = await db.Categories.FindAsync(id);
     return category is not null ? Results.Ok(category) : Results.NotFound();
 })
-    .WithName("GetCategoryById");
+    .WithName("GetCategoryById")
+    .RequireAuthorization();
 
 app.MapPost("/categories", async (CreateCategoryDto dto, AppDbContext db) =>
 {
@@ -121,7 +154,8 @@ app.MapPost("/categories", async (CreateCategoryDto dto, AppDbContext db) =>
     await db.SaveChangesAsync();
     return Results.Created($"/categories/{category.Id}", category);
 })
-    .WithName("CreateCategory");
+    .WithName("CreateCategory")
+    .RequireAuthorization();
 
 app.MapPut("/categories/{id}", async (int id, UpdateCategoryDto dto, AppDbContext db) =>
 {
@@ -135,7 +169,8 @@ app.MapPut("/categories/{id}", async (int id, UpdateCategoryDto dto, AppDbContex
     await db.SaveChangesAsync();
     return Results.Ok(category);
 })
-    .WithName("UpdateCategory");
+    .WithName("UpdateCategory")
+    .RequireAuthorization();
 
 app.MapDelete("/categories/{id}", async (int id, AppDbContext db) =>
 {
@@ -146,5 +181,50 @@ app.MapDelete("/categories/{id}", async (int id, AppDbContext db) =>
     await db.SaveChangesAsync();
     return Results.NoContent();
 })
-    .WithName("DeleteCategory");
+    .WithName("DeleteCategory")
+    .RequireAuthorization(policy => policy.RequireRole("Admin"));
+
+app.MapPost("/auth/register", async (RegisterDto dto, AppDbContext db, ILogger<Program> logger) =>
+{
+    if (!TryValidate(dto, out var errors))
+        return Results.ValidationProblem(errors);
+
+    var emailTaken = await db.Users.AnyAsync(u => u.Email == dto.Email);
+    if (emailTaken){
+        logger.LogWarning("Προσπάθεια εγγραφής με ήδη υπαρκτό email: {Email}", dto.Email);
+        return Results.Conflict(new { message = "Υπάρχει ήδη χρήστης με αυτό το email." });
+    }
+
+    var user = new User
+    {
+        Email = dto.Email,
+        PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+        CreatedAt = DateTime.UtcNow
+    };
+
+    db.Users.Add(user);
+    await db.SaveChangesAsync();
+
+    logger.LogInformation("Νέος χρήστης εγγράφηκε: {Email} (Id: {UserId})", user.Email, user.Id);
+    
+    return Results.Created($"/users/{user.Id}", new { user.Id, user.Email, user.Role, user.CreatedAt });
+})
+    .WithName("Register");
+
+app.MapPost("/auth/login", async (LoginDto dto, AppDbContext db, ITokenService tokenService, ILogger<Program> logger) =>
+{
+    if (!TryValidate(dto, out var errors))
+        return Results.ValidationProblem(errors);
+
+    var user = await db.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
+    if (user is null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash)){
+        logger.LogWarning("Αποτυχημένη προσπάθεια login για {Email}", dto.Email);
+        return Results.Unauthorized();
+            
+    }
+    logger.LogInformation("Επιτυχές login για {Email}", user.Email);
+    var token = tokenService.GenerateToken(user);
+    return Results.Ok(new { token });
+})
+    .WithName("Login");
 app.Run();
