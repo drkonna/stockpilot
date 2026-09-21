@@ -83,6 +83,15 @@ app.MapPost("/products", async (CreateProductDto dto, AppDbContext db) =>
     if (!TryValidate(dto, out var errors))
         return Results.ValidationProblem(errors);
 
+    if (dto.CategoryId.HasValue && !await db.Categories.AnyAsync(c => c.Id == dto.CategoryId))
+        return Results.BadRequest(new { message = "Η κατηγορία δεν υπάρχει." });
+
+    if (!await db.Suppliers.AnyAsync(s => s.Id == dto.SupplierId))
+        return Results.BadRequest(new { message = "Ο προμηθευτής δεν υπάρχει." });
+
+    if (dto.ProductFamilyId.HasValue && !await db.ProductFamilies.AnyAsync(f => f.Id == dto.ProductFamilyId))
+        return Results.BadRequest(new { message = "Η product family δεν υπάρχει." });
+
     var product = new Product
     {
         Name = dto.Name,
@@ -90,6 +99,10 @@ app.MapPost("/products", async (CreateProductDto dto, AppDbContext db) =>
         QuantityInStock = dto.QuantityInStock,
         UnitPrice = dto.UnitPrice,
         CategoryId = dto.CategoryId,
+        SupplierId = dto.SupplierId,
+        ProductFamilyId = dto.ProductFamilyId,
+        Color = dto.Color,
+        Size = dto.Size,
         CreatedAt = DateTime.UtcNow
     };
 
@@ -105,6 +118,15 @@ app.MapPut("/products/{id}", async (int id, UpdateProductDto dto, AppDbContext d
     if (!TryValidate(dto, out var errors))
         return Results.ValidationProblem(errors);
 
+    if (dto.CategoryId.HasValue && !await db.Categories.AnyAsync(c => c.Id == dto.CategoryId))
+        return Results.BadRequest(new { message = "Η κατηγορία δεν υπάρχει." });
+
+    if (!await db.Suppliers.AnyAsync(s => s.Id == dto.SupplierId))
+        return Results.BadRequest(new { message = "Ο προμηθευτής δεν υπάρχει." });
+
+    if (dto.ProductFamilyId.HasValue && !await db.ProductFamilies.AnyAsync(f => f.Id == dto.ProductFamilyId))
+        return Results.BadRequest(new { message = "Η product family δεν υπάρχει." });
+        
     var product = await db.Products.FindAsync(id);
     if (product is null) return Results.NotFound();
 
@@ -113,6 +135,10 @@ app.MapPut("/products/{id}", async (int id, UpdateProductDto dto, AppDbContext d
     product.QuantityInStock = dto.QuantityInStock;
     product.UnitPrice = dto.UnitPrice;
     product.CategoryId = dto.CategoryId;
+    product.SupplierId = dto.SupplierId;
+    product.ProductFamilyId = dto.ProductFamilyId;
+    product.Color = dto.Color;
+    product.Size = dto.Size;
 
     await db.SaveChangesAsync();
     return Results.Ok(product);
@@ -182,6 +208,108 @@ app.MapDelete("/categories/{id}", async (int id, AppDbContext db) =>
     return Results.NoContent();
 })
     .WithName("DeleteCategory")
+    .RequireAuthorization(policy => policy.RequireRole("Admin"));
+
+app.MapGet("/suppliers", async (AppDbContext db) =>
+    await db.Suppliers.ToListAsync())
+    .WithName("GetSuppliers");
+
+app.MapGet("/suppliers/{id}", async (int id, AppDbContext db) =>
+{
+    var supplier = await db.Suppliers.FindAsync(id);
+    return supplier is not null ? Results.Ok(supplier) : Results.NotFound();
+})
+    .WithName("GetSupplierById");
+
+app.MapPost("/suppliers", async (CreateSupplierDto dto, AppDbContext db) =>
+{
+    if (!TryValidate(dto, out var errors))
+        return Results.ValidationProblem(errors);
+
+    var supplier = new Supplier { Name = dto.Name };
+    db.Suppliers.Add(supplier);
+    await db.SaveChangesAsync();
+    return Results.Created($"/suppliers/{supplier.Id}", supplier);
+})
+    .WithName("CreateSupplier")
+    .RequireAuthorization();
+
+app.MapPut("/suppliers/{id}", async (int id, UpdateSupplierDto dto, AppDbContext db) =>
+{
+    if (!TryValidate(dto, out var errors))
+        return Results.ValidationProblem(errors);
+
+    var supplier = await db.Suppliers.FindAsync(id);
+    if (supplier is null) return Results.NotFound();
+
+    supplier.Name = dto.Name;
+    await db.SaveChangesAsync();
+    return Results.Ok(supplier);
+})
+    .WithName("UpdateSupplier")
+    .RequireAuthorization();
+    
+app.MapDelete("/suppliers/{id}", async (int id, AppDbContext db) =>
+{
+    var supplier = await db.Suppliers.FindAsync(id);
+    if (supplier is null) return Results.NotFound();
+
+    db.Suppliers.Remove(supplier);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+})
+    .WithName("DeleteSupplier")
+    .RequireAuthorization(policy => policy.RequireRole("Admin"));
+
+app.MapGet("/productfamilies", async (AppDbContext db) =>
+    await db.ProductFamilies.ToListAsync())
+    .WithName("GetProductFamilies");
+
+app.MapGet("/productfamilies/{id}", async (int id, AppDbContext db) =>
+{
+    var family = await db.ProductFamilies.FindAsync(id);
+    return family is not null ? Results.Ok(family) : Results.NotFound();
+})
+    .WithName("GetProductFamilyById");
+
+app.MapPost("/productfamilies", async (CreateProductFamilyDto dto, AppDbContext db) =>
+{
+    if (!TryValidate(dto, out var errors))
+        return Results.ValidationProblem(errors);
+
+    var family = new ProductFamily { Name = dto.Name };
+    db.ProductFamilies.Add(family);
+    await db.SaveChangesAsync();
+    return Results.Created($"/productfamilies/{family.Id}", family);
+})
+    .WithName("CreateProductFamily")
+    .RequireAuthorization();
+
+app.MapPut("/productfamilies/{id}", async (int id, UpdateProductFamilyDto dto, AppDbContext db) =>
+{
+    if (!TryValidate(dto, out var errors))
+        return Results.ValidationProblem(errors);
+
+    var family = await db.ProductFamilies.FindAsync(id);
+    if (family is null) return Results.NotFound();
+
+    family.Name = dto.Name;
+    await db.SaveChangesAsync();
+    return Results.Ok(family);
+})
+    .WithName("UpdateProductFamily")
+    .RequireAuthorization();
+
+app.MapDelete("/productfamilies/{id}", async (int id, AppDbContext db) =>
+{
+    var family = await db.ProductFamilies.FindAsync(id);
+    if (family is null) return Results.NotFound();
+
+    db.ProductFamilies.Remove(family);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+})
+    .WithName("DeleteProductFamily")
     .RequireAuthorization(policy => policy.RequireRole("Admin"));
 
 app.MapPost("/auth/register", async (RegisterDto dto, AppDbContext db, ILogger<Program> logger) =>

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using StockPilot.Api.Data;
@@ -11,9 +12,11 @@ using StockPilot.Api.Data;
 namespace StockPilot.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260920095712_AddSupplierMakeCategoryOptional")]
+    partial class AddSupplierMakeCategoryOptional
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -50,9 +53,6 @@ namespace StockPilot.Api.Migrations
                     b.Property<int?>("CategoryId")
                         .HasColumnType("integer");
 
-                    b.Property<string>("Color")
-                        .HasColumnType("text");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -60,14 +60,8 @@ namespace StockPilot.Api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int?>("ProductFamilyId")
-                        .HasColumnType("integer");
-
                     b.Property<int>("QuantityInStock")
                         .HasColumnType("integer");
-
-                    b.Property<string>("Size")
-                        .HasColumnType("text");
 
                     b.Property<string>("Sku")
                         .IsRequired()
@@ -83,28 +77,9 @@ namespace StockPilot.Api.Migrations
 
                     b.HasIndex("CategoryId");
 
-                    b.HasIndex("ProductFamilyId");
-
                     b.HasIndex("SupplierId");
 
                     b.ToTable("Products");
-                });
-
-            modelBuilder.Entity("StockPilot.Api.Models.ProductFamily", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("ProductFamilies");
                 });
 
             modelBuilder.Entity("StockPilot.Api.Models.Supplier", b =>
@@ -159,13 +134,7 @@ namespace StockPilot.Api.Migrations
                 {
                     b.HasOne("StockPilot.Api.Models.Category", "Category")
                         .WithMany("Products")
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("StockPilot.Api.Models.ProductFamily", "ProductFamily")
-                        .WithMany("Products")
-                        .HasForeignKey("ProductFamilyId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .HasForeignKey("CategoryId");
 
                     b.HasOne("StockPilot.Api.Models.Supplier", "Supplier")
                         .WithMany("Products")
@@ -175,17 +144,10 @@ namespace StockPilot.Api.Migrations
 
                     b.Navigation("Category");
 
-                    b.Navigation("ProductFamily");
-
                     b.Navigation("Supplier");
                 });
 
             modelBuilder.Entity("StockPilot.Api.Models.Category", b =>
-                {
-                    b.Navigation("Products");
-                });
-
-            modelBuilder.Entity("StockPilot.Api.Models.ProductFamily", b =>
                 {
                     b.Navigation("Products");
                 });

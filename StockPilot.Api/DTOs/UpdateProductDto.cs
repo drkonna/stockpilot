@@ -18,6 +18,18 @@ public class UpdateProductDto
     [Range(0.01, double.MaxValue)]
     public decimal UnitPrice { get; set; }
 
+    
+    public int? CategoryId { get; set; }
+
     [Range(1, int.MaxValue)]
-    public int CategoryId { get; set; }
+    public int SupplierId { get; set; }
+
+    public int? ProductFamilyId { get; set; }
+
+    [StringLength(50)]
+    public string? Color { get; set; }
+
+    [StringLength(50)]
+    public string? Size { get; set; }
+
 }

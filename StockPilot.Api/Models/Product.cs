@@ -9,6 +9,14 @@ public class Product
     public decimal UnitPrice { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    public int CategoryId { get; set; }
+    public int? CategoryId { get; set; }
     public Category? Category { get; set; }
+    public int SupplierId { get; set; }
+    public Supplier? Supplier { get; set; }
+
+    public int? ProductFamilyId { get; set; }
+    public ProductFamily? ProductFamily { get; set; }
+
+    public string? Color { get; set; }
+    public string? Size { get; set; }
 }

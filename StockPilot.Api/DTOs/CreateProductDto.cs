@@ -18,6 +18,17 @@ public class CreateProductDto
     [Range(0.01, double.MaxValue, ErrorMessage = "Η τιμή πρέπει να είναι θετικός αριθμός.")]
     public decimal UnitPrice { get; set; }
 
-    [Range(1, int.MaxValue, ErrorMessage = "Πρέπει να επιλέξεις έγκυρη κατηγορία.")]
-    public int CategoryId { get; set; }
+    //[Range(1, int.MaxValue, ErrorMessage = "Πρέπει να επιλέξεις έγκυρη κατηγορία.")]
+    public int? CategoryId { get; set; }
+
+    [Range(1, int.MaxValue, ErrorMessage = "Πρέπει να επιλέξεις έγκυρο προμηθευτή.")]
+    public int SupplierId { get; set; }
+
+    public int? ProductFamilyId { get; set; }
+
+    [StringLength(50)]
+    public string? Color { get; set; }
+
+    [StringLength(50)]
+    public string? Size { get; set; }
 }
