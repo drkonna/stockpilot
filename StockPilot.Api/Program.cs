@@ -9,6 +9,7 @@ using StockPilot.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Linq.Expressions;
 
 
 static bool TryValidate<T>(T model, out IDictionary<string, string[]> errors)
@@ -26,6 +27,24 @@ static bool TryValidate<T>(T model, out IDictionary<string, string[]> errors)
 
     return isValid;
 }
+
+Expression<Func<Product, ProductResponseDto>> ProductToDto = p => new ProductResponseDto
+{
+    Id = p.Id,
+    Name = p.Name,
+    Sku = p.Sku,
+    QuantityInStock = p.QuantityInStock,
+    UnitPrice = p.UnitPrice,
+    CreatedAt = p.CreatedAt,
+    CategoryId = p.CategoryId,
+    CategoryName = p.Category != null ? p.Category.Name : null,
+    SupplierId = p.SupplierId,
+    SupplierName = p.Supplier!.Name,
+    ProductFamilyId = p.ProductFamilyId,
+    ProductFamilyName = p.ProductFamily != null ? p.ProductFamily.Name : null,
+    Color = p.Color,
+    Size = p.Size
+};
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -67,13 +86,43 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/products", async (AppDbContext db) =>
-    await db.Products.ToListAsync())
+app.MapGet("/products", async (
+    AppDbContext db,
+    string? search,
+    int? minQuantity,
+    int? maxQuantity,
+    decimal? minPrice,
+    decimal? maxPrice) =>
+{
+    var query = db.Products.AsQueryable();
+
+    if (!string.IsNullOrWhiteSpace(search))
+        query = query.Where(p =>
+            EF.Functions.ILike(p.Name, $"%{search}%") ||
+            EF.Functions.ILike(p.Sku, $"%{search}%"));
+
+    if (minQuantity.HasValue)
+        query = query.Where(p => p.QuantityInStock >= minQuantity);
+    if (maxQuantity.HasValue)
+        query = query.Where(p => p.QuantityInStock <= maxQuantity);
+
+    if (minPrice.HasValue)
+        query = query.Where(p => p.UnitPrice >= minPrice);
+
+    if (maxPrice.HasValue)
+        query = query.Where(p => p.UnitPrice <= maxPrice);
+
+    return await query.Select(ProductToDto).ToListAsync();
+})
     .WithName("GetProducts");
 
 app.MapGet("/products/{id}", async (int id, AppDbContext db) =>
 {
-    var product = await db.Products.FindAsync(id);
+    var product = await db.Products
+        .Where(p => p.Id == id)
+        .Select(ProductToDto)
+        .FirstOrDefaultAsync();
+
     return product is not null ? Results.Ok(product) : Results.NotFound();
 })
     .WithName("GetProductById");
@@ -108,7 +157,12 @@ app.MapPost("/products", async (CreateProductDto dto, AppDbContext db) =>
 
     db.Products.Add(product);
     await db.SaveChangesAsync();
-    return Results.Created($"/products/{product.Id}", product);
+
+    var responseDto = await db.Products
+        .Where(p => p.Id == product.Id)
+        .Select(ProductToDto)
+        .FirstAsync();
+    return Results.Created($"/products/{product.Id}", responseDto);
 })
     .WithName("CreateProduct")
     .RequireAuthorization();
@@ -141,7 +195,11 @@ app.MapPut("/products/{id}", async (int id, UpdateProductDto dto, AppDbContext d
     product.Size = dto.Size;
 
     await db.SaveChangesAsync();
-    return Results.Ok(product);
+    var responseDto = await db.Products
+        .Where(p => p.Id == product.Id)
+        .Select(ProductToDto)
+        .FirstAsync();
+    return Results.Ok(responseDto);
 })
     .WithName("UpdateProduct")
     .RequireAuthorization();
@@ -159,12 +217,18 @@ app.MapDelete("/products/{id}", async (int id, AppDbContext db) =>
     .RequireAuthorization();
 
 app.MapGet("/categories", async (AppDbContext db) =>
-    await db.Categories.ToListAsync())
+    await db.Categories
+        .Select(c => new CategoryResponseDto { Id = c.Id, Name = c.Name })
+        .ToListAsync())
     .WithName("GetCategories");
 
 app.MapGet("/categories/{id}", async (int id, AppDbContext db) =>
 {
-    var category = await db.Categories.FindAsync(id);
+    var category = await db.Categories
+        .Where(c => c.Id == id)
+        .Select(c => new CategoryResponseDto { Id = c.Id, Name = c.Name })
+        .FirstOrDefaultAsync();
+
     return category is not null ? Results.Ok(category) : Results.NotFound();
 })
     .WithName("GetCategoryById")
@@ -211,12 +275,17 @@ app.MapDelete("/categories/{id}", async (int id, AppDbContext db) =>
     .RequireAuthorization(policy => policy.RequireRole("Admin"));
 
 app.MapGet("/suppliers", async (AppDbContext db) =>
-    await db.Suppliers.ToListAsync())
+    await db.Suppliers
+        .Select(s => new SupplierResponseDto { Id = s.Id, Name = s.Name })
+        .ToListAsync())
     .WithName("GetSuppliers");
 
 app.MapGet("/suppliers/{id}", async (int id, AppDbContext db) =>
 {
-    var supplier = await db.Suppliers.FindAsync(id);
+    var supplier = await db.Suppliers
+        .Where(s => s.Id == id)
+        .Select(s => new SupplierResponseDto { Id = s.Id, Name = s.Name })
+        .FirstOrDefaultAsync();
     return supplier is not null ? Results.Ok(supplier) : Results.NotFound();
 })
     .WithName("GetSupplierById");
@@ -262,12 +331,17 @@ app.MapDelete("/suppliers/{id}", async (int id, AppDbContext db) =>
     .RequireAuthorization(policy => policy.RequireRole("Admin"));
 
 app.MapGet("/productfamilies", async (AppDbContext db) =>
-    await db.ProductFamilies.ToListAsync())
+    await db.ProductFamilies
+        .Select(f => new ProductFamilyResponseDto { Id = f.Id, Name = f.Name })
+        .ToListAsync())
     .WithName("GetProductFamilies");
 
 app.MapGet("/productfamilies/{id}", async (int id, AppDbContext db) =>
 {
-    var family = await db.ProductFamilies.FindAsync(id);
+    var family = await db.ProductFamilies
+        .Where(f => f.Id == id)
+        .Select(f => new ProductFamilyResponseDto { Id = f.Id, Name = f.Name })
+        .FirstOrDefaultAsync();
     return family is not null ? Results.Ok(family) : Results.NotFound();
 })
     .WithName("GetProductFamilyById");
