@@ -1,3 +1,4 @@
 <Solution>
+  <Project Path="StockPilot.Api.Tests/StockPilot.Api.Tests.csproj" />
   <Project Path="StockPilot.Api/StockPilot.Api.csproj" />
 </Solution>

@@ -71,6 +71,17 @@ builder.Services.AddSingleton<ITokenService, TokenService>();builder.Services.Ad
     });
 
 builder.Services.AddAuthorization();
+var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowVueDev", policy =>
+    {
+        policy.WithOrigins(corsOrigins)
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 var app = builder.Build();app.MapScalarApiReference();
 
 if (app.Environment.IsDevelopment())
@@ -83,6 +94,7 @@ else
 }
 
 app.UseHttpsRedirection();
+app.UseCors("AllowVueDev");
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -430,3 +442,4 @@ app.MapPost("/auth/login", async (LoginDto dto, AppDbContext db, ITokenService t
 })
     .WithName("Login");
 app.Run();
+public partial class Program { }
