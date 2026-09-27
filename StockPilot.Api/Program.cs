@@ -83,12 +83,9 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();app.MapScalarApiReference();
+app.MapOpenApi();
 
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
-else
+if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler();
 }
@@ -443,3 +440,4 @@ app.MapPost("/auth/login", async (LoginDto dto, AppDbContext db, ITokenService t
     .WithName("Login");
 app.Run();
 public partial class Program { }
+//m3tr0p0l1t4N!-r00t
