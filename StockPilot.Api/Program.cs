@@ -82,7 +82,9 @@ builder.Services.AddCors(options =>
     });
 });
 
-var app = builder.Build();app.MapScalarApiReference();
+var app = builder.Build();
+app.UseRenderForwardedHeaders();
+app.MapScalarApiReference();
 app.MapOpenApi();
 
 if (!app.Environment.IsDevelopment())
