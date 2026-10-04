@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using StockPilot.Api.Data;
@@ -11,9 +12,11 @@ using StockPilot.Api.Data;
 namespace StockPilot.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260929210259_AddStoreAndUserStoreLink")]
+    partial class AddStoreAndUserStoreLink
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -63,6 +66,9 @@ namespace StockPilot.Api.Migrations
                     b.Property<int?>("ProductFamilyId")
                         .HasColumnType("integer");
 
+                    b.Property<int>("QuantityInStock")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Size")
                         .HasColumnType("text");
 
@@ -102,33 +108,6 @@ namespace StockPilot.Api.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("ProductFamilies");
-                });
-
-            modelBuilder.Entity("StockPilot.Api.Models.ProductStock", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("ProductId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Quantity")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("StoreId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("StoreId");
-
-                    b.HasIndex("ProductId", "StoreId")
-                        .IsUnique();
-
-                    b.ToTable("ProductStocks");
                 });
 
             modelBuilder.Entity("StockPilot.Api.Models.Store", b =>
@@ -240,25 +219,6 @@ namespace StockPilot.Api.Migrations
                     b.Navigation("Supplier");
                 });
 
-            modelBuilder.Entity("StockPilot.Api.Models.ProductStock", b =>
-                {
-                    b.HasOne("StockPilot.Api.Models.Product", "Product")
-                        .WithMany("ProductStocks")
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("StockPilot.Api.Models.Store", "Store")
-                        .WithMany()
-                        .HasForeignKey("StoreId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Product");
-
-                    b.Navigation("Store");
-                });
-
             modelBuilder.Entity("StockPilot.Api.Models.User", b =>
                 {
                     b.HasOne("StockPilot.Api.Models.Store", "Store")
@@ -272,11 +232,6 @@ namespace StockPilot.Api.Migrations
             modelBuilder.Entity("StockPilot.Api.Models.Category", b =>
                 {
                     b.Navigation("Products");
-                });
-
-            modelBuilder.Entity("StockPilot.Api.Models.Product", b =>
-                {
-                    b.Navigation("ProductStocks");
                 });
 
             modelBuilder.Entity("StockPilot.Api.Models.ProductFamily", b =>

@@ -33,7 +33,7 @@ Expression<Func<Product, ProductResponseDto>> ProductToDto = p => new ProductRes
     Id = p.Id,
     Name = p.Name,
     Sku = p.Sku,
-    QuantityInStock = p.QuantityInStock,
+    QuantityInStock = p.ProductStocks.Sum(ps => ps.Quantity),
     UnitPrice = p.UnitPrice,
     CreatedAt = p.CreatedAt,
     CategoryId = p.CategoryId,
@@ -113,9 +113,9 @@ app.MapGet("/products", async (
             EF.Functions.ILike(p.Sku, $"%{search}%"));
 
     if (minQuantity.HasValue)
-        query = query.Where(p => p.QuantityInStock >= minQuantity);
+        query = query.Where(p => p.ProductStocks.Sum(ps => ps.Quantity) >= minQuantity);
     if (maxQuantity.HasValue)
-        query = query.Where(p => p.QuantityInStock <= maxQuantity);
+        query = query.Where(p => p.ProductStocks.Sum(ps => ps.Quantity) <= maxQuantity);
 
     if (minPrice.HasValue)
         query = query.Where(p => p.UnitPrice >= minPrice);
@@ -156,7 +156,6 @@ app.MapPost("/products", async (CreateProductDto dto, AppDbContext db) =>
     {
         Name = dto.Name,
         Sku = dto.Sku,
-        QuantityInStock = dto.QuantityInStock,
         UnitPrice = dto.UnitPrice,
         CategoryId = dto.CategoryId,
         SupplierId = dto.SupplierId,
@@ -167,6 +166,15 @@ app.MapPost("/products", async (CreateProductDto dto, AppDbContext db) =>
     };
 
     db.Products.Add(product);
+    await db.SaveChangesAsync();
+
+    var centralStore = await db.Stores.FirstAsync(s => s.IsCentral);
+    db.ProductStocks.Add(new ProductStock
+    {
+        ProductId = product.Id,
+        StoreId = centralStore.Id,
+        Quantity = dto.QuantityInStock
+    });
     await db.SaveChangesAsync();
 
     var responseDto = await db.Products
@@ -197,13 +205,23 @@ app.MapPut("/products/{id}", async (int id, UpdateProductDto dto, AppDbContext d
 
     product.Name = dto.Name;
     product.Sku = dto.Sku;
-    product.QuantityInStock = dto.QuantityInStock;
     product.UnitPrice = dto.UnitPrice;
     product.CategoryId = dto.CategoryId;
     product.SupplierId = dto.SupplierId;
     product.ProductFamilyId = dto.ProductFamilyId;
     product.Color = dto.Color;
     product.Size = dto.Size;
+
+    var centralStore = await db.Stores.FirstAsync(s => s.IsCentral);
+    var stock = await db.ProductStocks
+        .FirstOrDefaultAsync(ps => ps.ProductId == product.Id && ps.StoreId == centralStore.Id);
+
+    if (stock is null)
+    {
+        stock = new ProductStock { ProductId = product.Id, StoreId = centralStore.Id };
+        db.ProductStocks.Add(stock);
+    }
+    stock.Quantity = dto.QuantityInStock;
 
     await db.SaveChangesAsync();
     var responseDto = await db.Products

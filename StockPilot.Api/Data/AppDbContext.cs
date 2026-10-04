@@ -18,6 +18,10 @@ public class AppDbContext : DbContext
     public DbSet<Supplier> Suppliers => Set<Supplier>();
 
     public DbSet<ProductFamily> ProductFamilies => Set<ProductFamily>();
+
+    public DbSet<Store> Stores => Set<Store>();
+
+    public DbSet<ProductStock> ProductStocks => Set<ProductStock>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Product>()
@@ -40,6 +44,38 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<User>()
             .HasIndex(u => u.Email)
+            .IsUnique();
+
+        modelBuilder.Entity<User>()
+            .HasOne(u => u.Store)
+            .WithMany()
+            .HasForeignKey(u => u.StoreId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Store>()
+            .HasIndex(s => s.IsCentral)
+            .IsUnique()
+            .HasFilter("\"IsCentral\" = true");
+
+        modelBuilder.Entity<User>()
+            .ToTable(t => t.HasCheckConstraint(
+                "CK_Users_StoreId_Required_Unless_Admin",
+                "\"Role\" = 'Admin' OR \"StoreId\" IS NOT NULL"));
+
+        modelBuilder.Entity<ProductStock>()
+            .HasOne(ps => ps.Product)
+            .WithMany(p => p.ProductStocks)
+            .HasForeignKey(ps => ps.ProductId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ProductStock>()
+            .HasOne(ps => ps.Store)
+            .WithMany()
+            .HasForeignKey(ps => ps.StoreId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ProductStock>()
+            .HasIndex(ps => new { ps.ProductId, ps.StoreId })
             .IsUnique();
     }
 
