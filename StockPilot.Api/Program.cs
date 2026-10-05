@@ -425,11 +425,12 @@ app.MapPost("/auth/register", async (RegisterDto dto, AppDbContext db, ILogger<P
         logger.LogWarning("Προσπάθεια εγγραφής με ήδη υπαρκτό email: {Email}", dto.Email);
         return Results.Conflict(new { message = "Υπάρχει ήδη χρήστης με αυτό το email." });
     }
-
+    var centralStore = await db.Stores.FirstAsync(s => s.IsCentral);
     var user = new User
     {
         Email = dto.Email,
         PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+        StoreId = centralStore.Id,
         CreatedAt = DateTime.UtcNow
     };
 
@@ -460,4 +461,4 @@ app.MapPost("/auth/login", async (LoginDto dto, AppDbContext db, ITokenService t
     .WithName("Login");
 app.Run();
 public partial class Program { }
-//m3tr0p0l1t4N!-r00t
+//m3tr0p0l1t4N!-r0ot
