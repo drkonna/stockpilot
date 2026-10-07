@@ -57,6 +57,10 @@ public class AppDbContext : DbContext
             .IsUnique()
             .HasFilter("\"IsCentral\" = true");
 
+        modelBuilder.Entity<Store>()
+            .HasIndex(s => s.Code)
+            .IsUnique();
+
         modelBuilder.Entity<User>()
             .ToTable(t => t.HasCheckConstraint(
                 "CK_Users_StoreId_Required_Unless_Admin",
