@@ -11,12 +11,15 @@ import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
 import Button from 'primevue/button'
 import ProductFormDialog from '@/components/ProductFormDialog.vue'
+import ProductStockDialog from '@/components/ProductStockDialog.vue'
 
 const authStore = useAuthStore()
 const productsStore = useProductsStore()
 const lookupsStore = useLookupsStore()
 const router = useRouter()
 const confirm = useConfirm()
+const stockDialogVisible = ref(false)
+const stockProduct = ref<Product | null>(null)
 
 const filters = reactive({
   search: '',
@@ -72,14 +75,13 @@ function confirmDelete(product: Product) {
     },
   })
 }
+function openStockDialog(product: Product) {
+  stockProduct.value = product
+  stockDialogVisible.value = true
+}
 
 function handleSaved() {
   applyFilters()
-}
-
-function handleLogout() {
-  authStore.logout()
-  router.push({ name: 'login' })
 }
 
 onMounted(() => {
@@ -92,7 +94,6 @@ onMounted(() => {
   <div class="products-page">
     <div class="header">
       <h1>Products</h1>
-      <Button label="Αποσύνδεση" severity="secondary" @click="handleLogout" />
     </div>
 
     <div class="filters">
@@ -120,6 +121,7 @@ onMounted(() => {
       <Column field="size" header="Μέγεθος" />
       <Column header="Ενέργειες">
         <template #body="{ data }">
+          <Button icon="pi pi-building" text rounded aria-label="Απόθεμα ανά κατάστημα" @click="openStockDialog(data)" />
           <Button icon="pi pi-pencil" text rounded @click="openEditDialog(data)" />
           <Button icon="pi pi-trash" text rounded severity="danger" @click="confirmDelete(data)" />
         </template>
@@ -129,6 +131,12 @@ onMounted(() => {
     <ProductFormDialog
       v-model:visible="dialogVisible"
       :product="editingProduct"
+      @saved="handleSaved"
+    />
+
+    <ProductStockDialog
+      v-model:visible="stockDialogVisible"
+      :product="stockProduct"
       @saved="handleSaved"
     />
   </div>

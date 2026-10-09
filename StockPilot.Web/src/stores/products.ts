@@ -39,6 +39,22 @@ export interface ProductInput {
   size: string | null
 }
 
+export interface StoreStock {
+  storeId: number
+  storeName: string
+  storeCode: string
+  isCentral: boolean
+  quantity: number
+}
+
+export interface ProductStock {
+  productId: number
+  productName: string
+  sku: string
+  totalQuantity: number
+  stores: StoreStock[]
+}
+
 export const useProductsStore = defineStore('products', () => {
   const products = ref<Product[]>([])
   const loading = ref(false)
@@ -65,5 +81,15 @@ export const useProductsStore = defineStore('products', () => {
     await api.delete(`/products/${id}`)
   }
 
-  return { products, loading, fetchProducts, createProduct, updateProduct, deleteProduct }
+  async function fetchProductStock(productId: number) {
+    const { data } = await api.get<ProductStock>(`/products/${productId}/stock`)
+    return data
+  }
+
+  async function setStoreStock(productId: number, storeId: number, quantity: number) {
+    const { data } = await api.put<StoreStock>(`/products/${productId}/stock/${storeId}`, { quantity })
+    return data
+  }
+
+  return { products, loading, fetchProducts, createProduct, updateProduct, deleteProduct, fetchProductStock, setStoreStock }
 })
