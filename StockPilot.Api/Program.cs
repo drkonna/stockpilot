@@ -84,6 +84,7 @@ app.UseCors("AllowVueDev");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapStoreEndpoints();
+app.MapStockEndpoints();
 
 app.MapGet("/products", async (
     AppDbContext db,
