@@ -19,7 +19,8 @@ public static class StoreEndpoints
 
     public static IEndpointRouteBuilder MapStoreEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/stores", async (AppDbContext db) =>
+        var group = app.MapGroup("/stores").WithTags("Stores").RequireAuthorization();
+        group.MapGet("/", async (AppDbContext db) =>
             await db.Stores
                 .OrderByDescending(s => s.IsCentral)
                 .ThenBy(s => s.Name)
@@ -28,7 +29,7 @@ public static class StoreEndpoints
             .WithName("GetStores")
             .RequireAuthorization();
 
-        app.MapGet("/stores/{id}", async (int id, AppDbContext db) =>
+        group.MapGet("/{id}", async (int id, AppDbContext db) =>
         {
             var store = await db.Stores
                 .Where(s => s.Id == id)
@@ -37,10 +38,9 @@ public static class StoreEndpoints
 
             return store is not null ? Results.Ok(store) : Results.NotFound();
         })
-            .WithName("GetStoreById")
-            .RequireAuthorization();
+            .WithName("GetStoreById");
 
-        app.MapPost("/stores", async (CreateStoreDto dto, AppDbContext db) =>
+        group.MapPost("/", async (CreateStoreDto dto, AppDbContext db) =>
         {
             if (!TryValidate(dto, out var errors))
                 return Results.ValidationProblem(errors);
@@ -64,7 +64,7 @@ public static class StoreEndpoints
             .WithName("CreateStore")
             .RequireAuthorization(policy => policy.RequireRole("Admin"));
 
-        app.MapPut("/stores/{id}", async (int id, UpdateStoreDto dto, AppDbContext db) =>
+        group.MapPut("/{id}", async (int id, UpdateStoreDto dto, AppDbContext db) =>
         {
             if (!TryValidate(dto, out var errors))
                 return Results.ValidationProblem(errors);
@@ -91,7 +91,7 @@ public static class StoreEndpoints
             .WithName("UpdateStore")
             .RequireAuthorization(policy => policy.RequireRole("Admin"));
 
-        app.MapDelete("/stores/{id}", async (int id, AppDbContext db) =>
+        group.MapDelete("/{id}", async (int id, AppDbContext db) =>
         {
             var store = await db.Stores.FindAsync(id);
             if (store is null) return Results.NotFound();
