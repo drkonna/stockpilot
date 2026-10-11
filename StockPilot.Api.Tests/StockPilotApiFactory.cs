@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using StockPilot.Api.Data;
+using Microsoft.Extensions.Hosting;
+using StockPilot.Api.Models;
 
 namespace StockPilot.Api.Tests;
 
@@ -56,5 +58,22 @@ public class StockPilotApiFactory : WebApplicationFactory<Program>
             services.AddDbContext<AppDbContext>(options =>
                 options.UseInMemoryDatabase(_dbName));
         });
+    }
+
+    protected override IHost CreateHost(IHostBuilder builder)
+    {
+        var host = base.CreateHost(builder);
+
+        using var scope = host.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.Database.EnsureCreated();
+
+        if (!db.Stores.Any(s => s.IsCentral))
+        {
+            db.Stores.Add(new Store { Name = "Κεντρικό Κατάστημα", Code = "MAIN", IsCentral = true });
+            db.SaveChanges();
+        }
+
+        return host;
     }
 }
