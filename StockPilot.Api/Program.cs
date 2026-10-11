@@ -35,4 +35,3 @@ app.MapApiEndpoints();
 
 app.Run();
 public partial class Program { }
-//m3tr0p0l1t4N!-r0ot

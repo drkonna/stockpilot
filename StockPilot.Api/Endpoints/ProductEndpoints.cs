@@ -13,7 +13,7 @@ namespace StockPilot.Api.Endpoints;
 
 
 
-public static class ProductEndPoints
+public static class ProductEndpoints
 {
     private static readonly Expression<Func<Product, ProductResponseDto>> ProductToDto = p => new ProductResponseDto
     {
