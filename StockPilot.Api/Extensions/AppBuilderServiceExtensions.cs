@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Microsoft.AspNetCore.Authorization;
 
 public static class AppBuilderServiceExtensions
 {
@@ -54,7 +55,10 @@ public static class AppBuilderServiceExtensions
                 };
             });
 
-        services.AddAuthorization();
+        services.AddAuthorizationBuilder()
+        .SetFallbackPolicy(new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build());
         return services;
     }
 

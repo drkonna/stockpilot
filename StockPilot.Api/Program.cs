@@ -19,8 +19,8 @@ builder.Services.AddAppCors(builder.Configuration);
 
 var app = builder.Build();
 app.UseRenderForwardedHeaders();
-app.MapScalarApiReference();
-app.MapOpenApi();
+app.MapScalarApiReference().AllowAnonymous();
+app.MapOpenApi().AllowAnonymous();
 
 if (!app.Environment.IsDevelopment())
 {
@@ -32,6 +32,6 @@ app.UseCors(AppBuilderServiceExtensions.CorsPolicyName);
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapApiEndpoints();
-
+app.MapGet("/ping", () => "ok");
 app.Run();
 public partial class Program { }
