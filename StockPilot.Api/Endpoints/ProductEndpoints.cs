@@ -169,7 +169,7 @@ public static class ProductEndpoints
         })
         .WithName("UpdateProduct");
 
-        group.MapDelete("/products/{id}", async (int id, AppDbContext db) =>
+        group.MapDelete("/{id}", async (int id, AppDbContext db) =>
         {
             var product = await db.Products.FindAsync(id);
             if (product is null) return Results.NotFound();
