@@ -32,6 +32,6 @@ app.UseCors(AppBuilderServiceExtensions.CorsPolicyName);
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapApiEndpoints();
-app.MapGet("/ping", () => "ok");
+await app.WarmUpDatabaseAsync();
 app.Run();
 public partial class Program { }
