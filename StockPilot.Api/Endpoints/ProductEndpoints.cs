@@ -6,7 +6,9 @@ using StockPilot.Api.Dtos;
 using StockPilot.Api.Models;
 using static StockPilot.Api.Helpers.ValidationHelper;
 
-
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using StockPilot.Api.Services.Import;
 
 
 namespace StockPilot.Api.Endpoints;
@@ -32,6 +34,8 @@ public static class ProductEndpoints
         Color = p.Color,
         Size = p.Size
     };
+
+    private const long MaxImportFileBytes = 5 * 1024 * 1024; // 5 MB
     public static IEndpointRouteBuilder MapProductEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/products").WithTags("Products").RequireAuthorization();
@@ -179,10 +183,43 @@ public static class ProductEndpoints
             return Results.NoContent();
         })
         .WithName("DeleteProduct")
-        .RequireAuthorization(policy => policy.RequireRole("Admin")); 
+        .RequireAuthorization(policy => policy.RequireRole("Admin"));
 
+        group.MapPost("/import", async (
+        IFormFile file,
+        ProductImportService importService,
+        ClaimsPrincipal user,
+        CancellationToken ct,
+        bool dryRun = false) =>
+    {
+        if (file.Length == 0)
+            return Results.BadRequest(new { message = "Το αρχείο είναι κενό." });
+        if (file.Length > MaxImportFileBytes)
+            return Results.BadRequest(new { message = "Το αρχείο ξεπερνά το επιτρεπτό μέγεθος (5 MB)." });
+
+        // The user id travels in the token's "sub" claim (see TokenService); the framework may
+        // expose it under either name, so both are checked.
+        var idClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                      ?? user.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+        int? userId = int.TryParse(idClaim, out var id) ? id : null;
+
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            var result = await importService.ImportAsync(stream, file.FileName, userId, dryRun, ct);
+            return Results.Ok(new { dryRun, result.Added, result.Updated, result.Failed, result.Errors });
+        }
+        catch (ImportFileException ex)
+        {
+            // Whole-file problems (bad name, unknown store, missing columns, stale date...)
+            return Results.BadRequest(new { message = ex.Message });
+        }
+    })
+    .WithName("ImportProducts")
+    .DisableAntiforgery()
+    .RequireAuthorization(policy => policy.RequireRole("Admin"));
         return app;
     }
 
-    
+
 }

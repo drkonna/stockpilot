@@ -16,6 +16,7 @@ builder.Services.AddProblemDetails();
 builder.Services.AddDatabase(builder.Configuration);
 builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddAppCors(builder.Configuration);
+builder.Services.AddProductImport();
 
 var app = builder.Build();
 app.UseRenderForwardedHeaders();

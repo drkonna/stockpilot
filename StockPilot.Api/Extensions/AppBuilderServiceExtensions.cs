@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
+using StockPilot.Api.Services.Import;
 
 public static class AppBuilderServiceExtensions
 {
@@ -72,4 +73,14 @@ public static class AppBuilderServiceExtensions
                 policy.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod()));
         return services;
     }
+
+    public static IServiceCollection AddProductImport(this IServiceCollection services)
+{
+    // Both readers are registered under the same interface: the service receives them all
+    // as IEnumerable<IProductImportReader> and picks one by file extension.
+    services.AddSingleton<IProductImportReader, CsvProductImportReader>();
+    services.AddSingleton<IProductImportReader, XlsxProductImportReader>();
+    services.AddScoped<ProductImportService>();
+    return services;
+}
 }
