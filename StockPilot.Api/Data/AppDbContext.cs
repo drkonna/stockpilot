@@ -22,6 +22,8 @@ public class AppDbContext : DbContext
     public DbSet<Store> Stores => Set<Store>();
 
     public DbSet<ProductStock> ProductStocks => Set<ProductStock>();
+
+    public DbSet<ImportBatch> ImportBatches => Set<ImportBatch>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Product>()
@@ -81,6 +83,26 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<ProductStock>()
             .HasIndex(ps => new { ps.ProductId, ps.StoreId })
             .IsUnique();
+
+            modelBuilder.Entity<ImportBatch>()
+                .HasOne(b => b.Store)
+                .WithMany()
+                .HasForeignKey(b => b.StoreId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ImportBatch>()
+                .HasOne(b => b.User)
+                .WithMany()
+                .HasForeignKey(b => b.UserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<ImportBatch>()
+                .Property(b => b.FileName)
+                .HasMaxLength(255);
+
+            // The service asks "latest FileDate for this store"
+            modelBuilder.Entity<ImportBatch>()
+                .HasIndex(b => new { b.StoreId, b.FileDate });
     }
 
 

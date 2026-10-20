@@ -39,6 +39,49 @@ namespace StockPilot.Api.Migrations
                     b.ToTable("Categories");
                 });
 
+            modelBuilder.Entity("StockPilot.Api.Models.ImportBatch", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Added")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Failed")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("FileDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<DateTime>("ImportedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("StoreId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Updated")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("StoreId", "FileDate");
+
+                    b.ToTable("ImportBatches");
+                });
+
             modelBuilder.Entity("StockPilot.Api.Models.Product", b =>
                 {
                     b.Property<int>("Id")
@@ -216,6 +259,24 @@ namespace StockPilot.Api.Migrations
                         {
                             t.HasCheckConstraint("CK_Users_StoreId_Required_Unless_Admin", "\"Role\" = 'Admin' OR \"StoreId\" IS NOT NULL");
                         });
+                });
+
+            modelBuilder.Entity("StockPilot.Api.Models.ImportBatch", b =>
+                {
+                    b.HasOne("StockPilot.Api.Models.Store", "Store")
+                        .WithMany()
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StockPilot.Api.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Store");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("StockPilot.Api.Models.Product", b =>
