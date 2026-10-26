@@ -55,6 +55,20 @@ export interface ProductStock {
   stores: StoreStock[]
 }
 
+export interface ImportError {
+  row: number
+  sku: string | null
+  message: string
+}
+
+export interface ImportResult {
+  dryRun: boolean
+  added: number
+  updated: number
+  failed: number
+  errors: ImportError[]
+}
+
 export const useProductsStore = defineStore('products', () => {
   const products = ref<Product[]>([])
   const loading = ref(false)
@@ -91,5 +105,12 @@ export const useProductsStore = defineStore('products', () => {
     return data
   }
 
-  return { products, loading, fetchProducts, createProduct, updateProduct, deleteProduct, fetchProductStock, setStoreStock }
+  async function importProducts(file: File, dryRun: boolean) {
+    const form = new FormData()
+    form.append('file', file) // "file" must match the parameter name of the endpoint
+    const { data } = await api.post<ImportResult>('/products/import', form, { params: { dryRun } })
+    return data
+  }
+
+  return { products, loading, fetchProducts, createProduct, updateProduct, deleteProduct, fetchProductStock, setStoreStock, importProducts }
 })

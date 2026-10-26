@@ -12,6 +12,7 @@ import InputNumber from 'primevue/inputnumber'
 import Button from 'primevue/button'
 import ProductFormDialog from '@/components/ProductFormDialog.vue'
 import ProductStockDialog from '@/components/ProductStockDialog.vue'
+import ProductImportDialog from '@/components/ProductImportDialog.vue'
 
 const authStore = useAuthStore()
 const productsStore = useProductsStore()
@@ -20,6 +21,7 @@ const router = useRouter()
 const confirm = useConfirm()
 const stockDialogVisible = ref(false)
 const stockProduct = ref<Product | null>(null)
+const importVisible = ref(false)
 
 const filters = reactive({
   search: '',
@@ -40,6 +42,13 @@ function applyFilters() {
     minPrice: filters.minPrice ?? undefined,
     maxPrice: filters.maxPrice ?? undefined,
   })
+}
+
+// New categories / suppliers / families may have been created by the import,
+// so the dropdowns of the product form must be reloaded as well.
+function handleImported() {
+  applyFilters()
+  lookupsStore.fetchAll()
 }
 
 function clearFilters() {
@@ -105,6 +114,14 @@ onMounted(() => {
       <Button label="Φίλτρο" @click="applyFilters" />
       <Button label="Καθαρισμός" severity="secondary" outlined @click="clearFilters" />
       <Button label="Νέο προϊόν" @click="openCreateDialog" />
+      <Button
+        v-if="authStore.isAdmin"
+        label="Εισαγωγή"
+        icon="pi pi-file-import"
+        severity="secondary"
+        outlined
+        @click="importVisible = true"
+      />
     </div>
 
     <DataTable :value="productsStore.products" :loading="productsStore.loading" paginator :rows="10" stripedRows>
@@ -139,6 +156,8 @@ onMounted(() => {
       :product="stockProduct"
       @saved="handleSaved"
     />
+
+    <ProductImportDialog v-model:visible="importVisible" @imported="handleImported" />
   </div>
 </template>
 
