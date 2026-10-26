@@ -14,12 +14,17 @@ public static class WarmUpExtensions
         var sw = Stopwatch.StartNew();
         try
         {
-            using var scope = app.Services.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            await db.Products.AsNoTracking().Select(p => p.Id).Take(1).ToListAsync();
+             using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-             app.Logger.LogInformation(
-                "Database warm-up completed in {ElapsedMs} ms", sw.ElapsedMilliseconds); 
+        _ = db.Model; // forces the EF model to be built
+        app.Logger.LogInformation("Warm-up: EF model built at {ElapsedMs} ms", sw.ElapsedMilliseconds);
+
+        await db.Database.OpenConnectionAsync();
+        app.Logger.LogInformation("Warm-up: connection opened at {ElapsedMs} ms", sw.ElapsedMilliseconds);
+
+        await db.Products.AsNoTracking().Select(p => p.Id).Take(1).ToListAsync();
+        app.Logger.LogInformation("Warm-up: completed at {ElapsedMs} ms", sw.ElapsedMilliseconds);
         }
         catch (Exception ex)
         {
