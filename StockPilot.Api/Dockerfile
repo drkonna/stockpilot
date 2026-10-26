@@ -6,7 +6,7 @@ COPY StockPilot.Api.csproj .
 RUN dotnet restore StockPilot.Api.csproj
 
 COPY . .
-RUN dotnet publish StockPilot.Api.csproj -c Release -o /app/publish
+RUN dotnet publish StockPilot.Api.csproj -c Release -o /app/publish -r linux-x64 --self-contained false -p:PublishReadyToRun=true
 
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
@@ -17,5 +17,3 @@ ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 
 ENTRYPOINT ["dotnet", "StockPilot.Api.dll"]
-
-RUN dotnet publish StockPilot.Api.csproj -c Release -o /app/publish -r linux-x64 --self-contained false -p:PublishReadyToRun=true
