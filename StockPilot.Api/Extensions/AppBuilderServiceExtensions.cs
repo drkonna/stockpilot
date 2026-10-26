@@ -70,7 +70,10 @@ public static class AppBuilderServiceExtensions
 
         services.AddCors(options =>
             options.AddPolicy(CorsPolicyName, policy =>
-                policy.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod()));
+                policy.WithOrigins(origins)
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .SetPreflightMaxAge(TimeSpan.FromHours(1))));
         return services;
     }
 
