@@ -103,6 +103,10 @@ public class AppDbContext : DbContext
             // The service asks "latest FileDate for this store"
             modelBuilder.Entity<ImportBatch>()
                 .HasIndex(b => new { b.StoreId, b.FileDate });
+
+            modelBuilder.Entity<Product>()
+                .HasIndex(p => p.Sku)
+                .IsUnique();
     }
 
 

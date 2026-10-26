@@ -125,6 +125,9 @@ namespace StockPilot.Api.Migrations
 
                     b.HasIndex("ProductFamilyId");
 
+                    b.HasIndex("Sku")
+                        .IsUnique();
+
                     b.HasIndex("SupplierId");
 
                     b.ToTable("Products");

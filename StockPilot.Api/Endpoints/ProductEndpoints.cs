@@ -94,10 +94,15 @@ public static class ProductEndpoints
             if (dto.ProductFamilyId.HasValue && !await db.ProductFamilies.AnyAsync(f => f.Id == dto.ProductFamilyId))
                 return Results.BadRequest(new { message = "Η product family δεν υπάρχει." });
 
+            var sku = dto.Sku.Trim();
+            var skuKey = sku.ToLower();
+            if (await db.Products.AnyAsync(p => p.Sku.ToLower() == skuKey))
+                return Results.Conflict(new { message = "Υπάρχει ήδη προϊόν με αυτό το SKU." });
+
             var product = new Product
             {
                 Name = dto.Name,
-                Sku = dto.Sku,
+                Sku = sku,
                 UnitPrice = dto.UnitPrice,
                 CategoryId = dto.CategoryId,
                 SupplierId = dto.SupplierId,
@@ -141,11 +146,16 @@ public static class ProductEndpoints
             if (dto.ProductFamilyId.HasValue && !await db.ProductFamilies.AnyAsync(f => f.Id == dto.ProductFamilyId))
                 return Results.BadRequest(new { message = "Η product family δεν υπάρχει." });
 
+                var sku = dto.Sku.Trim();
+                var skuKey = sku.ToLower();
+                if (await db.Products.AnyAsync(p => p.Id != id && p.Sku.ToLower() == skuKey))
+                    return Results.Conflict(new { message = "Υπάρχει ήδη άλλο προϊόν με αυτό το SKU." });
+
             var product = await db.Products.FindAsync(id);
             if (product is null) return Results.NotFound();
 
             product.Name = dto.Name;
-            product.Sku = dto.Sku;
+            product.Sku = sku;
             product.UnitPrice = dto.UnitPrice;
             product.CategoryId = dto.CategoryId;
             product.SupplierId = dto.SupplierId;
