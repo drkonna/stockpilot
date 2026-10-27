@@ -51,22 +51,22 @@ public static class AuthEndpoints
                 return Results.ValidationProblem(errors);
 
             var user = await db.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
-            // if (user is null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
-            // {
-            //     logger.LogWarning("Αποτυχημένη προσπάθεια login για {Email}", dto.Email);
-            //     return Results.Unauthorized();
-
-            // }
-
-            var sw = Stopwatch.StartNew();
-            var passwordOk = user is not null && BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash);
-            logger.LogInformation("Login: BCrypt verify took {ElapsedMs} ms", sw.ElapsedMilliseconds);
-
-            if (!passwordOk)
+            if (user is null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
             {
                 logger.LogWarning("Αποτυχημένη προσπάθεια login για {Email}", dto.Email);
                 return Results.Unauthorized();
+
             }
+
+            // var sw = Stopwatch.StartNew();
+            // var passwordOk = user is not null && BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash);
+            // logger.LogInformation("Login: BCrypt verify took {ElapsedMs} ms", sw.ElapsedMilliseconds);
+
+            // if (!passwordOk)
+            // {
+            //     logger.LogWarning("Αποτυχημένη προσπάθεια login για {Email}", dto.Email);
+            //     return Results.Unauthorized();
+            // }
 
             logger.LogInformation("Επιτυχές login για {Email}", user.Email);
             var token = tokenService.GenerateToken(user);

@@ -23,7 +23,7 @@ public static class WarmUpExtensions
         await db.Database.OpenConnectionAsync();
         app.Logger.LogInformation("Warm-up: connection opened at {ElapsedMs} ms", sw.ElapsedMilliseconds);
 
-        await db.Products.AsNoTracking().Select(p => p.Id).Take(1).ToListAsync();
+        await db.Products.AsNoTracking().AnyAsync();
         app.Logger.LogInformation("Warm-up: completed at {ElapsedMs} ms", sw.ElapsedMilliseconds);
         }
         catch (Exception ex)
