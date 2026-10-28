@@ -10,6 +10,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using StockPilot.Api.Services.Import;
+using StockPilot.Api.Helpers;
 
 public static class AppBuilderServiceExtensions
 {
@@ -73,21 +74,34 @@ public static class AppBuilderServiceExtensions
                 policy.WithOrigins(origins)
                 .AllowAnyHeader()
                 .AllowAnyMethod()
+                .WithExposedHeaders("X-Total-Count")
                 .SetPreflightMaxAge(TimeSpan.FromHours(1))));
         return services;
     }
 
     public static IServiceCollection AddProductImport(this IServiceCollection services, IConfiguration configuration)
-{
-    services.AddOptions<ImportOptions>()
-        .Bind(configuration.GetSection(ImportOptions.SectionName))
-        .ValidateDataAnnotations()
-        .ValidateOnStart();
-    // Both readers are registered under the same interface: the service receives them all
-    // as IEnumerable<IProductImportReader> and picks one by file extension.
-    services.AddSingleton<IProductImportReader, CsvProductImportReader>();
-    services.AddSingleton<IProductImportReader, XlsxProductImportReader>();
-    services.AddScoped<ProductImportService>();
-    return services;
-}
+    {
+        services.AddOptions<ImportOptions>()
+            .Bind(configuration.GetSection(ImportOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+
+
+        // Both readers are registered under the same interface: the service receives them all
+        // as IEnumerable<IProductImportReader> and picks one by file extension.
+        services.AddSingleton<IProductImportReader, CsvProductImportReader>();
+        services.AddSingleton<IProductImportReader, XlsxProductImportReader>();
+        services.AddScoped<ProductImportService>();
+        return services;
+    }
+
+    public static IServiceCollection AddPaging(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<PagingOptions>()
+            .Bind(configuration.GetSection(PagingOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        return services;
+    }
 }

@@ -5,6 +5,7 @@ using StockPilot.Api.Data;
 using StockPilot.Api.Dtos;
 using StockPilot.Api.Models;
 using static StockPilot.Api.Helpers.ValidationHelper;
+using StockPilot.Api.Helpers;
 
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -36,17 +37,39 @@ public static class ProductEndpoints
         Size = p.Size
     };
 
-   
+    // Only whitelisted columns can be sorted. The final ThenBy(Id) breaks ties, so the same
+// row can never appear on two pages (or be skipped) when many rows share a value.
+private static IOrderedQueryable<Product> ApplySort(IQueryable<Product> query, string? sortBy, bool descending) =>
+    (sortBy?.ToLowerInvariant(), descending) switch
+    {
+        ("name", false) => query.OrderBy(p => p.Name).ThenBy(p => p.Id),
+        ("name", true) => query.OrderByDescending(p => p.Name).ThenBy(p => p.Id),
+        ("sku", false) => query.OrderBy(p => p.Sku).ThenBy(p => p.Id),
+        ("sku", true) => query.OrderByDescending(p => p.Sku).ThenBy(p => p.Id),
+        ("quantityinstock", false) => query.OrderBy(p => p.ProductStocks.Sum(ps => ps.Quantity)).ThenBy(p => p.Id),
+        ("quantityinstock", true) => query.OrderByDescending(p => p.ProductStocks.Sum(ps => ps.Quantity)).ThenBy(p => p.Id),
+        ("unitprice", false) => query.OrderBy(p => p.UnitPrice).ThenBy(p => p.Id),
+        ("unitprice", true) => query.OrderByDescending(p => p.UnitPrice).ThenBy(p => p.Id),
+        _ => query.OrderBy(p => p.Id),
+    };
+
+
     public static IEndpointRouteBuilder MapProductEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/products").WithTags("Products").RequireAuthorization();
         group.MapGet("/", async (
             AppDbContext db,
+            HttpResponse response,
+            IOptions<PagingOptions> paging,
             string? search,
             int? minQuantity,
             int? maxQuantity,
             decimal? minPrice,
-            decimal? maxPrice) =>
+            decimal? maxPrice,
+            string? sortBy,
+            string? sortDir,
+            int page = 1,
+            int pageSize = 10) =>
         {
             var query = db.Products.AsQueryable();
 
@@ -66,7 +89,20 @@ public static class ProductEndpoints
             if (maxPrice.HasValue)
                 query = query.Where(p => p.UnitPrice <= maxPrice);
 
-            return await query.Select(ProductToDto).ToListAsync();
+            // Out-of-range values are corrected instead of rejected
+            page = Math.Clamp(page, 1, 1_000_000);
+            pageSize = Math.Clamp(pageSize, 1, paging.Value.MaxPageSize);
+
+            // The total is counted on the filtered query, before Skip/Take
+            response.Headers["X-Total-Count"] = (await query.CountAsync()).ToString();
+
+            var descending = string.Equals(sortDir, "desc", StringComparison.OrdinalIgnoreCase);
+
+            return await ApplySort(query, sortBy, descending)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(ProductToDto)
+                .ToListAsync();
         })
         .WithName("GetProducts");
 
