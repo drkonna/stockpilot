@@ -66,6 +66,21 @@ public class ProductImportEndpointTests : IClassFixture<StockPilotApiFactory>
         return await db.Products.AnyAsync(p => p.Sku == sku);
     }
 
+    
+
+    [Fact]
+    public async Task File_over_the_size_limit_returns_400_with_the_limit_in_the_message()
+    {
+        var token = await LoginAs("Admin");
+        var oversized = Header + "\n" + new string('x', 5 * 1024 * 1024 + 1);
+
+        var response = await Upload(token, "MAIN_141026.csv", oversized);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Contains("5 MB", json.GetProperty("message").GetString());
+    }
+    
     [Fact]
     public async Task Upload_without_token_returns_401()
     {

@@ -1,13 +1,14 @@
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using StockPilot.Api.Data;
 using StockPilot.Api.Models;
 
 namespace StockPilot.Api.Services.Import;
 
-public class ProductImportService(AppDbContext db, IEnumerable<IProductImportReader> readers)
+public class ProductImportService(AppDbContext db, IEnumerable<IProductImportReader> readers, IOptions<ImportOptions> options)
 {
-    private const int MaxRows = 5000;
+    private readonly ImportOptions _options = options.Value;
 
     public async Task<ImportResult> ImportAsync(
         Stream stream, string fileName, int? userId, bool dryRun = false, CancellationToken ct = default)
@@ -39,8 +40,8 @@ public class ProductImportService(AppDbContext db, IEnumerable<IProductImportRea
         var rows = await reader.ReadAsync(stream, ct);
         if (rows.Count == 0)
             throw new ImportFileException("Το αρχείο δεν περιέχει γραμμές δεδομένων.");
-        if (rows.Count > MaxRows)
-            throw new ImportFileException($"Το αρχείο έχει πάνω από {MaxRows} γραμμές.");
+        if (rows.Count > _options.MaxRows)
+            throw new ImportFileException($"Το αρχείο έχει πάνω από {_options.MaxRows} γραμμές.");
 
         // ---- 2. Load everything we need with a few queries (never one query per row) ----
         // Candidates are fetched by lower(Sku); the exact, case-insensitive match is done in memory.

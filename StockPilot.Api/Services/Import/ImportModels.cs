@@ -1,5 +1,18 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace StockPilot.Api.Services.Import;
 
+
+public class ImportOptions
+{
+    public const string SectionName = "Import";
+
+    [Range(1, 100_000)]
+    public int MaxRows { get; init; } = 5000;
+
+    [Range(1, 100)]
+    public int MaxFileSizeMb { get; init; } = 5;
+}
 // One data row as read from a file, before any validation.
 // Everything is text on purpose: the readers only "translate" a file format
 // into this shape; parsing numbers and checking rules happens later, in one place.

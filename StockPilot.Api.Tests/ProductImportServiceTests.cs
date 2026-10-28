@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using StockPilot.Api.Data;
 using StockPilot.Api.Models;
 using StockPilot.Api.Services.Import;
@@ -28,10 +29,10 @@ public class ProductImportServiceTests
 
     private static string Csv(params string[] rows) => Header + "\n" + string.Join("\n", rows);
 
-    private async Task<ImportResult> Import(string fileName, string csv, bool dryRun = false)
+    private async Task<ImportResult> Import(string fileName, string csv, bool dryRun = false, ImportOptions? options = null)
     {
         using var db = NewDb();
-        var service = new ProductImportService(db, [new CsvProductImportReader(), new XlsxProductImportReader()]);
+        var service = new ProductImportService(db, [new CsvProductImportReader(), new XlsxProductImportReader()], Options.Create(options ?? new ImportOptions()));
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
         return await service.ImportAsync(stream, fileName, null, dryRun);
     }
@@ -43,6 +44,20 @@ public class ProductImportServiceTests
             .Where(s => s.Product!.Sku == sku && s.Store!.Code == storeCode)
             .Select(s => s.Quantity)
             .SingleAsync();
+    }
+
+    [Fact]
+    public async Task File_is_accepted_at_the_row_limit_and_rejected_above_it()
+    {
+        var limit = new ImportOptions { MaxRows = 3 };
+        var threeRows = new[] { "A1,Coffee,1,1,,Acme,,,", "A2,Tea,1,1,,Acme,,,", "A3,Milk,1,1,,Acme,,," };
+
+        var ok = await Import("MAIN_141026.csv", Csv(threeRows), options: limit);
+        Assert.Equal(3, ok.Added);
+
+        var ex = await Assert.ThrowsAsync<ImportFileException>(() =>
+            Import("MAIN_141026.csv", Csv([.. threeRows, "A4,Juice,1,1,,Acme,,,"]), options: limit));
+        Assert.Contains("3", ex.Message);
     }
 
     [Fact]

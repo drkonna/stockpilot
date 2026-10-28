@@ -77,8 +77,12 @@ public static class AppBuilderServiceExtensions
         return services;
     }
 
-    public static IServiceCollection AddProductImport(this IServiceCollection services)
+    public static IServiceCollection AddProductImport(this IServiceCollection services, IConfiguration configuration)
 {
+    services.AddOptions<ImportOptions>()
+        .Bind(configuration.GetSection(ImportOptions.SectionName))
+        .ValidateDataAnnotations()
+        .ValidateOnStart();
     // Both readers are registered under the same interface: the service receives them all
     // as IEnumerable<IProductImportReader> and picks one by file extension.
     services.AddSingleton<IProductImportReader, CsvProductImportReader>();
