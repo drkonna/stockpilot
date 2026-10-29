@@ -27,6 +27,13 @@ export interface ProductFilters {
   maxPrice?: number
 }
 
+export interface ProductQuery extends ProductFilters {
+  page?: number
+  pageSize?: number
+  sortBy?: string
+  sortDir?: 'asc' | 'desc'
+}
+
 export interface ProductInput {
   name: string
   sku: string
@@ -72,14 +79,23 @@ export interface ImportResult {
 export const useProductsStore = defineStore('products', () => {
   const products = ref<Product[]>([])
   const loading = ref(false)
+  const totalCount = ref(0)
 
-  async function fetchProducts(filters: ProductFilters = {}) {
+  // Only the newest request may update the state: if a slow older response arrives
+  // after a newer one, it would otherwise overwrite the page the user is looking at.
+  let latestRequest = 0
+
+  async function fetchProducts(query: ProductQuery = {}) {
+    const requestId = ++latestRequest
     loading.value = true
     try {
-      const { data } = await api.get<Product[]>('/products', { params: filters })
+      const { data, headers } = await api.get<Product[]>('/products', { params: query })
+      if (requestId !== latestRequest) return
       products.value = data
+      const total = Number(headers['x-total-count'])
+      totalCount.value = Number.isFinite(total) ? total : data.length
     } finally {
-      loading.value = false
+      if (requestId === latestRequest) loading.value = false
     }
   }
 
@@ -112,5 +128,5 @@ export const useProductsStore = defineStore('products', () => {
     return data
   }
 
-  return { products, loading, fetchProducts, createProduct, updateProduct, deleteProduct, fetchProductStock, setStoreStock, importProducts }
+  return { products, loading, totalCount, fetchProducts, createProduct, updateProduct, deleteProduct, fetchProductStock, setStoreStock, importProducts }
 })

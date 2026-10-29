@@ -5,7 +5,7 @@ import { useProductsStore, type Product } from '@/stores/products'
 import { useLookupsStore } from '@/stores/lookups'
 import { useRouter } from 'vue-router'
 import { useConfirm } from 'primevue/useconfirm'
-import DataTable from 'primevue/datatable'
+import DataTable, { type DataTablePageEvent, type DataTableSortEvent }  from 'primevue/datatable'
 import Column from 'primevue/column'
 import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
@@ -31,23 +31,60 @@ const filters = reactive({
   maxPrice: null as number | null,
 })
 
+const pageSize = 10
+const first = ref(0) // index of the first row of the current page (PrimeVue's "first")
+const sortField = ref<string | undefined>(undefined)
+const sortOrder = ref<number | undefined>(undefined) // 1 = ascending, -1 = descending
+
 const dialogVisible = ref(false)
 const editingProduct = ref<Product | null>(null)
 
-function applyFilters() {
-  productsStore.fetchProducts({
+async function loadProducts() {
+  await productsStore.fetchProducts({
     search: filters.search || undefined,
     minQuantity: filters.minQuantity ?? undefined,
     maxQuantity: filters.maxQuantity ?? undefined,
     minPrice: filters.minPrice ?? undefined,
     maxPrice: filters.maxPrice ?? undefined,
+    page: first.value / pageSize + 1,
+    pageSize,
+    sortBy: sortField.value ?? undefined,
+    sortDir: sortOrder.value === -1 ? 'desc' : 'asc',
   })
+}
+
+// New filters always start from the first page
+function applyFilters() {
+  first.value = 0
+  loadProducts()
+}
+
+// After a delete/save/import stay on the current page, unless it no longer exists
+// (e.g. the only product of the last page was deleted).
+async function reloadCurrentPage() {
+  await loadProducts()
+  if (first.value > 0 && first.value >= productsStore.totalCount) {
+    first.value = Math.max(0, Math.floor((productsStore.totalCount - 1) / pageSize) * pageSize)
+    await loadProducts()
+  }
+}
+
+function onPage(event: DataTablePageEvent) {
+  first.value = event.first
+  loadProducts()
+}
+
+function onSort(event: DataTableSortEvent) {
+  sortField.value = typeof event.sortField === 'string' ? event.sortField : undefined
+  sortOrder.value = event.sortOrder ?? undefined
+  first.value = 0
+  loadProducts()
 }
 
 // New categories / suppliers / families may have been created by the import,
 // so the dropdowns of the product form must be reloaded as well.
 function handleImported() {
-  applyFilters()
+  reloadCurrentPage()
   lookupsStore.fetchAll()
 }
 
@@ -80,7 +117,7 @@ function confirmDelete(product: Product) {
     acceptProps: { severity: 'danger' },
     accept: async () => {
       await productsStore.deleteProduct(product.id)
-      applyFilters()
+      reloadCurrentPage()
     },
   })
 }
@@ -90,7 +127,7 @@ function openStockDialog(product: Product) {
 }
 
 function handleSaved() {
-  applyFilters()
+  reloadCurrentPage()
 }
 
 onMounted(() => {
@@ -124,7 +161,7 @@ onMounted(() => {
       />
     </div>
 
-    <DataTable :value="productsStore.products" :loading="productsStore.loading" paginator :rows="10" stripedRows>
+    <DataTable :value="productsStore.products" :loading="productsStore.loading" lazy paginator :rows="10" :first="first" :totalRecords="productsStore.totalCount" :sortField="sortField" :sortOrder="sortOrder" stripedRows @page="onPage"  @sort="onSort">
       <Column field="name" header="Όνομα" sortable />
       <Column field="sku" header="SKU" sortable />
       <Column field="quantityInStock" header="Απόθεμα" sortable />
