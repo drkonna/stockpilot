@@ -482,3 +482,8 @@ $RECYCLE.BIN/
 *.swp
 
 /Claude outputs
+
+# local experiments
+   /seed.sql
+   /explain*.sql
+   /MAIN_*.csv

@@ -105,9 +105,24 @@ public class AppDbContext : DbContext
                 .HasIndex(b => new { b.StoreId, b.FileDate });
 
             modelBuilder.Entity<Product>()
-                .HasIndex(p => p.Sku)
+       .HasIndex(p => p.Name)
+       .HasDatabaseName("IX_Products_Name_trgm")
+       .HasMethod("gin")
+       .HasOperators("gin_trgm_ops");
+
+            modelBuilder.HasPostgresExtension("pg_trgm");
+
+            
+
+            modelBuilder.Entity<Product>()
+                .HasIndex(p => p.Sku, "IX_Products_Sku")
                 .IsUnique();
-    }
+
+            modelBuilder.Entity<Product>()
+                .HasIndex(p => p.Sku, "IX_Products_Sku_trgm")
+                .HasMethod("gin")
+                .HasOperators("gin_trgm_ops");
+                }
 
 
 }

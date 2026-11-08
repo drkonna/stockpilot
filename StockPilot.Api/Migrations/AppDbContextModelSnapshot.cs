@@ -20,6 +20,7 @@ namespace StockPilot.Api.Migrations
                 .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "pg_trgm");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("StockPilot.Api.Models.Category", b =>
@@ -123,12 +124,23 @@ namespace StockPilot.Api.Migrations
 
                     b.HasIndex("CategoryId");
 
+                    b.HasIndex("Name")
+                        .HasDatabaseName("IX_Products_Name_trgm");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Name"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Name"), new[] { "gin_trgm_ops" });
+
                     b.HasIndex("ProductFamilyId");
 
-                    b.HasIndex("Sku")
+                    b.HasIndex("SupplierId");
+
+                    b.HasIndex(new[] { "Sku" }, "IX_Products_Sku")
                         .IsUnique();
 
-                    b.HasIndex("SupplierId");
+                    b.HasIndex(new[] { "Sku" }, "IX_Products_Sku_trgm");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex(new[] { "Sku" }, "IX_Products_Sku_trgm"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex(new[] { "Sku" }, "IX_Products_Sku_trgm"), new[] { "gin_trgm_ops" });
 
                     b.ToTable("Products");
                 });
