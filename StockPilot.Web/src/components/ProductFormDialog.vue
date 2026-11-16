@@ -8,6 +8,7 @@ import Button from 'primevue/button'
 import Message from 'primevue/message'
 import { useProductsStore, type Product, type ProductInput } from '@/stores/products'
 import { useLookupsStore } from '@/stores/lookups'
+import { getApiErrorMessage } from '@/utils/apiError'
 
 const props = defineProps<{
   visible: boolean
@@ -94,8 +95,8 @@ async function handleSave() {
     }
     emit('saved')
     emit('update:visible', false)
-  } catch {
-    errorMessage.value = 'Κάτι πήγε στραβά κατά την αποθήκευση.'
+  } catch (error){
+    errorMessage.value = getApiErrorMessage(error, 'Κάτι πήγε στραβά κατά την αποθήκευση.')
   } finally {
     saving.value = false
   }
