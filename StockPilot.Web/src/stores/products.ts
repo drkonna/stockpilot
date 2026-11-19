@@ -52,6 +52,8 @@ export interface StoreStock {
   storeCode: string
   isCentral: boolean
   quantity: number
+  reorderLevel: number | null
+  isLow: boolean
 }
 
 export interface ProductStock {
@@ -116,8 +118,8 @@ export const useProductsStore = defineStore('products', () => {
     return data
   }
 
-  async function setStoreStock(productId: number, storeId: number, quantity: number) {
-    const { data } = await api.put<StoreStock>(`/products/${productId}/stock/${storeId}`, { quantity })
+  async function setStoreStock(productId: number, storeId: number, quantity: number, reorderLevel: number | null) {
+    const { data } = await api.put<StoreStock>(`/products/${productId}/stock/${storeId}`, { quantity, reorderLevel })
     return data
   }
 

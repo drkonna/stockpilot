@@ -32,7 +32,8 @@ const toast = useToast()
 
 const stock = ref<ProductStock | null>(null)
 // Οι τιμές που πληκτρολογεί ο χρήστης, ανά storeId, ξεχωριστά από τις αποθηκευμένες
-const drafts = ref<Record<number, number | null>>({})
+const quantityDrafts = ref<Record<number, number | null>>({})
+const levelDrafts = ref<Record<number, number | null>>({})
 const loading = ref(false)
 const savingStoreId = ref<number | null>(null)
 
@@ -52,7 +53,8 @@ watch(
     try {
       const data = await productsStore.fetchProductStock(props.product.id)
       stock.value = data
-      drafts.value = Object.fromEntries(data.stores.map((s) => [s.storeId, s.quantity]))
+      quantityDrafts.value = Object.fromEntries(data.stores.map((s) => [s.storeId, s.quantity]))
+levelDrafts.value = Object.fromEntries(data.stores.map((s) => [s.storeId, s.reorderLevel]))
     } catch (error) {
       toast.add({
         severity: 'error',
@@ -68,19 +70,31 @@ watch(
 )
 
 function isDirty(row: StoreStock) {
-  const draft = drafts.value[row.storeId]
-  return draft !== null && draft !== undefined && draft !== row.quantity
+  const quantity = quantityDrafts.value[row.storeId]
+  const level = levelDrafts.value[row.storeId] ?? null
+  if (quantity === null || quantity === undefined) return false
+  return quantity !== row.quantity || level !== row.reorderLevel
 }
 
 async function save(row: StoreStock) {
-  const quantity = drafts.value[row.storeId]
+  const quantity = quantityDrafts.value[row.storeId]
+  const reorderLevel = levelDrafts.value[row.storeId] ?? null
   if (!props.product || quantity === null || quantity === undefined) return
 
   savingStoreId.value = row.storeId
   try {
-    const updated = await productsStore.setStoreStock(props.product.id, row.storeId, quantity)
+    const updated = await productsStore.setStoreStock(
+      props.product.id,
+      row.storeId,
+      quantity,
+      reorderLevel,
+    )
     const target = stock.value?.stores.find((s) => s.storeId === row.storeId)
-    if (target) target.quantity = updated.quantity
+    if (target) {
+      target.quantity = updated.quantity
+      target.reorderLevel = updated.reorderLevel
+      target.isLow = updated.isLow
+    }
     toast.add({ severity: 'success', summary: 'Το απόθεμα ενημερώθηκε', life: 3000 })
     emit('saved')
   } catch (error) {
@@ -93,6 +107,7 @@ async function save(row: StoreStock) {
   } finally {
     savingStoreId.value = null
   }
+
 }
 </script>
 
@@ -101,33 +116,53 @@ async function save(row: StoreStock) {
     v-model:visible="dialogVisible"
     modal
     :header="`Απόθεμα: ${product?.name ?? ''}`"
-    :style="{ width: '40rem' }"
+    :style="{ width: '46rem' }"
   >
     <DataTable :value="stock?.stores ?? []" :loading="loading" size="small">
-      <Column header="Κατάστημα">
-        <template #body="{ data }">
-          {{ data.storeName }}
-          <Tag v-if="data.isCentral" value="Κεντρικό" severity="success" class="central-tag" />
-        </template>
-      </Column>
-      <Column field="storeCode" header="Κωδικός" />
-      <Column header="Ποσότητα">
-        <template #body="{ data }">
-          <div v-if="authStore.isAdmin" class="qty-edit">
-            <InputNumber v-model="drafts[data.storeId]" :min="0" :use-grouping="false" />
-            <Button
-              icon="pi pi-check"
-              rounded
-              text
-              :disabled="!isDirty(data)"
-              :loading="savingStoreId === data.storeId"
-              @click="save(data)"
-            />
-          </div>
-          <span v-else>{{ data.quantity }}</span>
-        </template>
-      </Column>
-    </DataTable>
+  <Column header="Κατάστημα">
+    <template #body="{ data }">
+      {{ data.storeName }}
+      <Tag v-if="data.isCentral" value="Κεντρικό" severity="success" class="central-tag" />
+      <Tag v-if="data.isLow" value="Χαμηλό" severity="warn" class="central-tag" />
+    </template>
+  </Column>
+  <Column field="storeCode" header="Κωδικός" />
+  <Column header="Ποσότητα">
+    <template #body="{ data }">
+      <InputNumber
+        v-if="authStore.isAdmin"
+        v-model="quantityDrafts[data.storeId]"
+        :min="0"
+        :use-grouping="false"
+      />
+      <span v-else>{{ data.quantity }}</span>
+    </template>
+  </Column>
+  <Column header="Όριο">
+    <template #body="{ data }">
+      <InputNumber
+        v-if="authStore.isAdmin"
+        v-model="levelDrafts[data.storeId]"
+        :min="0"
+        :use-grouping="false"
+        placeholder="—"
+      />
+      <span v-else>{{ data.reorderLevel ?? '—' }}</span>
+    </template>
+  </Column>
+  <Column v-if="authStore.isAdmin">
+    <template #body="{ data }">
+      <Button
+        icon="pi pi-check"
+        rounded
+        text
+        :disabled="!isDirty(data)"
+        :loading="savingStoreId === data.storeId"
+        @click="save(data)"
+      />
+    </template>
+  </Column>
+</DataTable>
 
     <template #footer>
       <strong class="total">Σύνολο: {{ total }}</strong>

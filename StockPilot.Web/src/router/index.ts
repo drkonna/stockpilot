@@ -30,6 +30,12 @@ const router = createRouter({
       component: () => import('@/views/StoresView.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/low-stock',
+      name: 'low-stock',
+      component: () => import('@/views/LowStockView.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 

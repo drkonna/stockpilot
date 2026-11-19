@@ -17,6 +17,7 @@ function handleLogout() {
     <nav class="nav">
       <RouterLink :to="{ name: 'products' }">Προϊόντα</RouterLink>
       <RouterLink :to="{ name: 'stores' }">Καταστήματα</RouterLink>
+      <RouterLink :to="{ name: 'low-stock' }">Χαμηλό απόθεμα</RouterLink>
     </nav>
     <Button label="Αποσύνδεση" severity="secondary" @click="handleLogout" />
   </header>
