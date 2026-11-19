@@ -484,6 +484,6 @@ $RECYCLE.BIN/
 /Claude outputs
 
 # local experiments
-   /seed.sql
-   /explain*.sql
-   /MAIN_*.csv
+/seed.sql
+/explain*.sql
+/MAIN_*.csv
