@@ -8,4 +8,5 @@ public class ProductStock
     public int StoreId { get; set; }
     public Store? Store { get; set; }
     public int Quantity { get; set; }
+    public int? ReorderLevel { get; set; }
 }

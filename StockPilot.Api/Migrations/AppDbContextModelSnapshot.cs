@@ -176,6 +176,9 @@ namespace StockPilot.Api.Migrations
                     b.Property<int>("Quantity")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("ReorderLevel")
+                        .HasColumnType("integer");
+
                     b.Property<int>("StoreId")
                         .HasColumnType("integer");
 

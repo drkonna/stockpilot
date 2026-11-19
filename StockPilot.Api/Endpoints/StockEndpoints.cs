@@ -3,6 +3,8 @@ using StockPilot.Api.Data;
 using StockPilot.Api.Dtos;
 using StockPilot.Api.Models;
 using static StockPilot.Api.Helpers.ValidationHelper;
+using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace StockPilot.Api.Endpoints;
 
@@ -32,7 +34,10 @@ public static class StockEndpoints
                     IsCentral = s.IsCentral,
                     Quantity = db.ProductStocks
                         .Where(ps => ps.ProductId == id && ps.StoreId == s.Id)
-                        .Sum(ps => ps.Quantity)
+                        .Sum(ps => ps.Quantity),
+                    ReorderLevel = db.ProductStocks
+                        .Where(ps => ps.ProductId == id && ps.StoreId == s.Id)
+                        .Max(ps => ps.ReorderLevel)
                 })
                 .ToListAsync();
 
@@ -71,6 +76,7 @@ public static class StockEndpoints
             }
 
             stock.Quantity = dto.Quantity!.Value;
+            stock.ReorderLevel = dto.ReorderLevel;
             await db.SaveChangesAsync();
 
             return Results.Ok(new StoreStockDto
@@ -79,11 +85,60 @@ public static class StockEndpoints
                 StoreName = store.Name,
                 StoreCode = store.Code,
                 IsCentral = store.IsCentral,
-                Quantity = stock.Quantity
+                Quantity = stock.Quantity,
+                ReorderLevel = stock.ReorderLevel
             });
         })
             .WithName("SetProductStock")
             .RequireAuthorization(policy => policy.RequireRole("Admin"));
+
+        app.MapGet("/stock/low", async (AppDbContext db, ClaimsPrincipal user, int? storeId) =>
+        {
+            // Ο Admin βλέπει όλα τα καταστήματα (ή φιλτράρει με ?storeId=).
+            // Ο απλός χρήστης βλέπει ΜΟΝΟ το δικό του κατάστημα, όποιο storeId κι αν στείλει.
+            var scopeStoreId = storeId;
+            if (!user.IsInRole("Admin"))
+            {
+                var idClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                            ?? user.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+                if (!int.TryParse(idClaim, out var userId))
+                    return Results.Unauthorized();
+
+                scopeStoreId = await db.Users
+                    .Where(u => u.Id == userId)
+                    .Select(u => u.StoreId)
+                    .FirstOrDefaultAsync();
+
+                if (scopeStoreId is null)
+                    return Results.Ok(Array.Empty<LowStockDto>());
+            }
+
+            var query = db.ProductStocks.AsNoTracking()
+                .Where(ps => ps.ReorderLevel != null && ps.Quantity <= ps.ReorderLevel);
+
+            if (scopeStoreId is not null)
+                query = query.Where(ps => ps.StoreId == scopeStoreId);
+
+            var items = await query
+                .OrderBy(ps => ps.Quantity - ps.ReorderLevel)   // πρώτα τα πιο κρίσιμα
+                .ThenBy(ps => ps.ProductId)
+                .Select(ps => new LowStockDto
+                {
+                    ProductId = ps.ProductId,
+                    ProductName = ps.Product!.Name,
+                    Sku = ps.Product.Sku,
+                    StoreId = ps.StoreId,
+                    StoreName = ps.Store!.Name,
+                    StoreCode = ps.Store.Code,
+                    Quantity = ps.Quantity,
+                    ReorderLevel = ps.ReorderLevel!.Value
+                })
+                .ToListAsync();
+
+            return Results.Ok(items);
+        })
+            .WithName("GetLowStock")
+            .RequireAuthorization();
 
         return app;
     }

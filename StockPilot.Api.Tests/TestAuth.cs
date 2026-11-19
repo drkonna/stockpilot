@@ -11,7 +11,7 @@ public static class TestAuth
     public const string Password = "Passw0rd!";
 
     // Creates a user with the given role straight in the database, then logs in for real.
-    public static async Task<string> LoginAs(StockPilotApiFactory factory, string role)
+    public static async Task<string> LoginAs(StockPilotApiFactory factory, string role, int? storeId = null)
     {
         var email = $"{Guid.NewGuid():N}@test.com";
         using (var scope = factory.Services.CreateScope())
@@ -23,7 +23,7 @@ public static class TestAuth
                 Email = email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(Password),
                 Role = role,
-                StoreId = central.Id
+                StoreId = storeId ?? central.Id
             });
             await db.SaveChangesAsync();
         }
